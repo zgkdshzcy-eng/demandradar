@@ -1,0 +1,56 @@
+# DemandRadar reverse proxy.
+#
+# Caddy automatically obtains and renews Let's Encrypt certs for {$DOMAIN}.
+# Set DOMAIN=localhost in dev to fall back to local-only HTTP.
+#
+# Routing:
+#   /api/*  -> api:8000      (FastAPI)
+#   /healthz, /readyz, /metrics -> api:8000
+#   everything else -> web:3000  (Next.js)
+
+{
+    email {$ACME_EMAIL}
+    # Forward client IPs through to the upstreams.
+    servers {
+        trusted_proxies static private_ranges
+    }
+}
+
+{$DOMAIN} {
+    encode zstd gzip
+
+    # Inject a stable request id if upstream didn't already.
+    request_header X-Forwarded-Proto {scheme}
+    request_header X-Real-IP {remote_host}
+
+    # ---- backend routes ----
+    @api {
+        path /api/* /healthz /readyz /llm/*
+    }
+    handle @api {
+        reverse_proxy api:8000 {
+            header_up X-Forwarded-Host {host}
+        }
+    }
+
+    # /metrics is sensitive — only expose to the local network in this MVP.
+    # Comment this block back in when you wire Prometheus into the stack.
+    @metrics path /metrics
+    handle @metrics {
+        @from_internal client_ip private_ranges
+        handle @from_internal {
+            reverse_proxy api:8000
+        }
+        respond "metrics restricted" 403
+    }
+
+    # ---- frontend (Next.js) ----
+    handle {
+        reverse_proxy web:3000
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}

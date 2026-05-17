@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.local
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+*.sqlite
+*.db
+data/cache/
+logs/
+*.log
+
+# Secrets
+*.pem
+*.key
+.env.prod
+.env.prod.local
+
+# Core IP (prompts are the moat — keep private)
+prompts/
+
+# Internal docs
+progress.txt
+思路.md
+docs/LAUNCH_COPY.md
+
+# Production config
+docker-compose.prod.yml
+
+# Seed data
+data/
+
+# Test artifacts
+*.pytest_cache/
+.coverage
+htmlcov/

@@ -1,0 +1,67 @@
+name: Deploy
+
+# Manual or release-tag triggered SSH deploy. Pulls the latest images from
+# GHCR on the prod box and runs `docker compose up -d --remove-orphans`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy (default: latest)"
+        required: false
+        default: "latest"
+  release:
+    types: [published]
+
+jobs:
+  ssh-deploy:
+    name: SSH · pull & restart
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "value=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Copy compose & infra to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          source: "docker-compose.prod.yml,infra/"
+          target: ${{ secrets.DEPLOY_PATH }}
+          strip_components: 0
+
+      - name: Pull & restart
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          envs: TAG
+          script: |
+            set -euo pipefail
+            cd ${{ secrets.DEPLOY_PATH }}
+            export TAG="${{ steps.tag.outputs.value }}"
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # Remap local build refs to GHCR images for prod.
+            export DOCKER_DEFAULT_PLATFORM=linux/amd64
+            docker pull ghcr.io/${{ github.repository }}/api:${TAG}
+            docker pull ghcr.io/${{ github.repository }}/web:${TAG}
+            docker tag ghcr.io/${{ github.repository }}/api:${TAG} demandradar-api:${TAG}
+            docker tag ghcr.io/${{ github.repository }}/web:${TAG} demandradar-web:${TAG}
+            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml ps

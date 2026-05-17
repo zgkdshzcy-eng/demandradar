@@ -19,7 +19,7 @@ jobs:
     env:
       # Tests fall back to in-memory SQLite via conftest; this URL is only used
       # to keep pydantic-settings happy on import.
-      DATABASE_URL: sqlite+pysqlite:///:memory:
+      DATABASE_URL: "sqlite+pysqlite:///:memory:"
       APP_SECRET_KEY: ci-secret-not-used-for-prod
       APP_ENV: test
       LOG_FORMAT: text

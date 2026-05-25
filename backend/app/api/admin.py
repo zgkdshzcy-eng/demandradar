@@ -104,7 +104,8 @@ def stats(
         )
         or 0
     )
-    # Crude MRR: sum amount_cents of active recurring subs (CNY denominated).
+    # Crude MRR: sum amount_cents of active recurring subs.
+    # Currency depends on provider: Stripe = USD cents, redeem = CNY cents.
     mrr_cents = int(
         db.scalar(
             select(func.coalesce(func.sum(Subscription.amount_cents), 0))
@@ -113,6 +114,7 @@ def stats(
         )
         or 0
     )
+    mrr_currency = "USD"
     grant_total = int(
         db.scalar(select(func.count()).select_from(ReferralGrant)) or 0
     )
@@ -121,7 +123,7 @@ def stats(
         StatsCard(label="Users", value=total_users, note=f"+{new_users_30d} in 30d"),
         StatsCard(label="Waitlist", value=waitlist_total),
         StatsCard(label="Active subs", value=active_subs),
-        StatsCard(label="MRR (¥)", value=round(mrr_cents / 100, 2)),
+        StatsCard(label=f"MRR ({mrr_currency})", value=round(mrr_cents / 100, 2)),
         StatsCard(label="Referral grants", value=grant_total),
     ]
 

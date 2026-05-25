@@ -57,3 +57,6 @@ class PainPoint(Base, IdMixin, TimestampMixin):
     total_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
     go_no_go: Mapped[str | None] = mapped_column(String(8), nullable=True)  # go | watch | drop
+
+    # D20: industry tag for benchmarking (e.g. "SaaS", "Fintech", "Health")
+    industry: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)

@@ -285,6 +285,17 @@ async def _run_cold_start() -> None:
         logger.exception("scheduler: cold_start crashed: {}", exc)
 
 
+async def _run_trend_alerts() -> None:
+    from app.db.session import SessionLocal
+    from app.notify.trend_alerts import dispatch_trend_alerts
+
+    try:
+        with SessionLocal() as db:
+            dispatch_trend_alerts(db)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("scheduler: trend_alerts crashed: {}", exc)
+
+
 # Track whether we've alerted on today's LLM budget threshold so the worker
 # only fires one webhook per breach instead of every 30 minutes.
 _LLM_ALERT_DAY: str | None = None
@@ -465,6 +476,16 @@ def start() -> None:
         _instrument("github_sync", _run_github_sync),
         trigger=IntervalTrigger(hours=1),
         id="github_sync",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=600,
+        replace_existing=True,
+    )
+    # D20: trend alerts every 6 hours
+    sch.add_job(
+        _instrument("trend_alerts", _run_trend_alerts),
+        trigger=IntervalTrigger(hours=6),
+        id="trend_alerts",
         max_instances=1,
         coalesce=True,
         misfire_grace_time=600,

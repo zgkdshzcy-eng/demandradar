@@ -249,6 +249,19 @@ export interface InsightsTimelinePoint {
   score: number;
 }
 
+export interface ShareUnlockResponse {
+  share_token: string;
+  share_url: string;
+  twitter_url: string | null;
+  message: string;
+}
+
+export interface ClaimShareResponse {
+  ok: boolean;
+  brief_id: number | null;
+  message: string;
+}
+
 export const api = {
   topPainpoints: (limit = 20) =>
     getOrNull<PainPoint[]>(`/api/painpoints/top?limit=${limit}`),
@@ -414,6 +427,48 @@ export const api = {
         return { ok: false, error: msg };
       }
       return { ok: true, data: (await r.json()) as RedeemResponse };
+    } catch (e) {
+      return { ok: false, error: String(e) };
+    }
+  },
+
+  // ---------- D20: share-to-unlock ----------
+  async createShareUnlock(input: {
+    brief_id?: number;
+    pain_point_id?: number;
+    platform?: string;
+  }): Promise<ShareUnlockResponse | null> {
+    try {
+      const r = await fetch(`/api/billing/share-unlock`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!r.ok) return null;
+      return (await r.json()) as ShareUnlockResponse;
+    } catch {
+      return null;
+    }
+  },
+
+  async claimShareUnlock(
+    share_token: string
+  ): Promise<{ ok: true; data: ClaimShareResponse } | { ok: false; error: string }> {
+    try {
+      const r = await fetch(`/api/billing/share-unlock/claim`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ share_token }),
+      });
+      if (!r.ok) {
+        let msg = `error ${r.status}`;
+        try {
+          const j = await r.json();
+          if (j?.detail) msg = String(j.detail);
+        } catch {}
+        return { ok: false, error: msg };
+      }
+      return { ok: true, data: (await r.json()) as ClaimShareResponse };
     } catch (e) {
       return { ok: false, error: String(e) };
     }

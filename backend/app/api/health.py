@@ -48,9 +48,10 @@ async def healthz() -> Response:
 @router.get("/readyz")
 async def readyz() -> Response:
     """Readiness probe — only ready once DB is reachable."""
+    ok = db_ping()
     return JSONResponse(
-        {"ready": db_ping()},
-        status_code=200 if db_ping() else 503,
+        {"ready": ok},
+        status_code=200 if ok else 503,
     )
 
 

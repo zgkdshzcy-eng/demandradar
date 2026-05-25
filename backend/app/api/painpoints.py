@@ -196,19 +196,6 @@ async def top_painpoints(
     ]
 
 
-@router.get("/{pain_id}", response_model=PainPointOut)
-async def get_painpoint(pain_id: int, db: Session = Depends(get_session)) -> PainPointOut:
-    pp = db.get(PainPoint, pain_id)
-    if pp is None:
-        raise HTTPException(status_code=404, detail="not found")
-    cluster_label: str | None = None
-    if pp.cluster_id:
-        cluster_label = db.scalar(
-            select(Cluster.label).where(Cluster.id == pp.cluster_id)
-        )
-    return _to_out(pp, cluster_label=cluster_label, evidence=_load_evidence(db, pp))
-
-
 @router.get("/-/stats")
 async def stats(db: Session = Depends(get_session)) -> dict[str, Any]:
     """Aggregate counts: total, scored, by go_no_go, average score."""
@@ -234,3 +221,16 @@ async def stats(db: Session = Depends(get_session)) -> dict[str, Any]:
         "by_go_no_go": {k or "unknown": int(v) for k, v in by_go.items()},
         "avg_score": float(avg_score) if avg_score is not None else None,
     }
+
+
+@router.get("/{pain_id}", response_model=PainPointOut)
+async def get_painpoint(pain_id: int, db: Session = Depends(get_session)) -> PainPointOut:
+    pp = db.get(PainPoint, pain_id)
+    if pp is None:
+        raise HTTPException(status_code=404, detail="not found")
+    cluster_label: str | None = None
+    if pp.cluster_id:
+        cluster_label = db.scalar(
+            select(Cluster.label).where(Cluster.id == pp.cluster_id)
+        )
+    return _to_out(pp, cluster_label=cluster_label, evidence=_load_evidence(db, pp))

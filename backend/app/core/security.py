@@ -51,6 +51,8 @@ class TokenError(Exception):
 def encode_jwt(payload: dict[str, Any], *, key: str | None = None) -> str:
     """Encode a JWT-style HS256 token. Caller is responsible for setting `exp`."""
     key = key or settings.app_secret_key
+    if not key:
+        raise TokenError("APP_SECRET_KEY is not configured; cannot sign tokens")
     header = {"alg": "HS256", "typ": "JWT"}
     h_b64 = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
     p_b64 = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
@@ -62,6 +64,8 @@ def encode_jwt(payload: dict[str, Any], *, key: str | None = None) -> str:
 def decode_jwt(token: str, *, key: str | None = None) -> dict[str, Any]:
     """Decode + verify. Raises TokenError on any failure."""
     key = key or settings.app_secret_key
+    if not key:
+        raise TokenError("APP_SECRET_KEY is not configured; cannot verify tokens")
     try:
         h_b64, p_b64, sig_b64 = token.split(".")
     except ValueError as e:

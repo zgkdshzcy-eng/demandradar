@@ -19,7 +19,11 @@ export async function GET(req: Request) {
       ? "#a855f7"
       : kind === "weekly"
         ? "#3b82f6"
-        : "#10b981";
+        : kind === "painpoint"
+          ? "#f59e0b"
+          : "#10b981";
+  const score = searchParams.get("score");
+  const evidenceCount = searchParams.get("evidence");
 
   return new ImageResponse(
     (
@@ -81,6 +85,36 @@ export async function GET(req: Request) {
           >
             {subtitle}
           </div>
+          {(score || evidenceCount) && (
+            <div style={{ display: "flex", gap: 32, marginTop: 8 }}>
+              {score && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 12,
+                    background: accent, display: "flex",
+                    alignItems: "center", justifyContent: "center",
+                    fontSize: 24, fontWeight: 700, color: "#fff"
+                  }}>
+                    {score}
+                  </div>
+                  <div style={{ fontSize: 20, color: "#94a3b8" }}>Demand Score</div>
+                </div>
+              )}
+              {evidenceCount && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 12,
+                    background: "rgba(255,255,255,0.1)", display: "flex",
+                    alignItems: "center", justifyContent: "center",
+                    fontSize: 24, fontWeight: 700, color: "#e2e8f0"
+                  }}>
+                    {evidenceCount}
+                  </div>
+                  <div style={{ fontSize: 20, color: "#94a3b8" }}>Signals</div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div

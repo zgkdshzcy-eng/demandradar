@@ -37,6 +37,7 @@ from app.core.security import (
 from app.db.session import get_session
 from app.models.brief import Brief
 from app.models.redeem_code import RedeemCode
+from app.models.share_unlock import ShareUnlock
 from app.models.subscription import Subscription
 from app.models.user import User
 
@@ -311,13 +312,13 @@ def admin_refund(
 
 
 @router.post("/webhook/stripe", status_code=status.HTTP_200_OK)
-async def stripe_webhook(
+def stripe_webhook(
     request: Request,
     db: Session = Depends(get_session),
 ) -> dict[str, object]:
     """Verify the signature and dispatch to handlers. Always returns 200 so
     Stripe stops retrying — errors are recorded as a `<type>__failed` row."""
-    body = await request.body()
+    body = request.body()
     sig = request.headers.get("stripe-signature", "")
     if not sig:
         raise HTTPException(status_code=400, detail="missing stripe-signature")
@@ -329,6 +330,145 @@ async def stripe_webhook(
         logger.warning("webhook verify failed: {}", e)
         raise HTTPException(status_code=400, detail=str(e))
     return handle_event(db, event)
+
+
+# ---------- D20: share-to-unlock (viral growth) ----------
+
+import secrets as _secrets
+
+SHARE_TOKEN_BYTES = 16  # 32-char hex token
+
+
+class ShareUnlockIn(BaseModel):
+    brief_id: int | None = None
+    pain_point_id: int | None = None
+    platform: str | None = None
+
+
+class ShareUnlockOut(BaseModel):
+    share_token: str
+    share_url: str
+    twitter_url: str | None = None
+    message: str
+
+
+class ClaimShareIn(BaseModel):
+    share_token: str = Field(min_length=8)
+
+
+class ClaimShareOut(BaseModel):
+    ok: bool
+    brief_id: int | None = None
+    message: str
+
+
+def _build_share_text(brief_id: int | None, pain_point_id: int | None) -> str:
+    if brief_id:
+        return "发现一个高价值痛点，DemandRadar 已经生成了完整项目书 →"
+    if pain_point_id:
+        return "这个需求痛点很有意思，来看看 DemandRadar 的分析 →"
+    return "用 DemandRadar 发现下一个创业机会 →"
+
+
+@router.post("/share-unlock", response_model=ShareUnlockOut)
+def create_share_unlock(
+    body: ShareUnlockIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(current_user_required),
+) -> ShareUnlockOut:
+    token = _secrets.token_hex(SHARE_TOKEN_BYTES)
+    base = settings.public_base_url.rstrip("/")
+
+    share_url = f"{base}/?share={token}"
+    if body.brief_id:
+        share_url += f"&bid={body.brief_id}"
+    elif body.pain_point_id:
+        share_url += f"&pid={body.pain_point_id}"
+
+    text = _build_share_text(body.brief_id, body.pain_point_id)
+    twitter_url = (
+        f"https://twitter.com/intent/tweet?text={text}&url={share_url}"
+    )
+
+    entry = ShareUnlock(
+        sharer_user_id=user.id,
+        share_token=token,
+        brief_id=body.brief_id,
+        pain_point_id=body.pain_point_id,
+        platform=body.platform,
+    )
+    db.add(entry)
+    db.commit()
+
+    logger.info("share_unlock created user={} token={} brief={}", user.id, token, body.brief_id)
+    return ShareUnlockOut(
+        share_token=token,
+        share_url=share_url,
+        twitter_url=twitter_url,
+        message="分享此链接，当有人通过链接注册后，你和对方都将获得 1 个免费 Brief 解锁！",
+    )
+
+
+@router.post("/share-unlock/claim", response_model=ClaimShareOut)
+def claim_share_unlock(
+    body: ClaimShareIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(current_user_required),
+) -> ClaimShareOut:
+    entry = db.scalar(
+        select(ShareUnlock).where(ShareUnlock.share_token == body.share_token)
+    )
+    if entry is None:
+        raise HTTPException(status_code=404, detail="share token not found")
+
+    if entry.claimed_by_user_id is not None and entry.claimed_by_user_id != user.id:
+        raise HTTPException(status_code=409, detail="share already claimed by another user")
+
+    now = datetime.now(tz=timezone.utc)
+    brief_id = entry.brief_id
+
+    if not entry.claimer_rewarded:
+        if brief_id is not None:
+            sub = Subscription(
+                user_id=user.id,
+                plan="brief_oneoff",
+                status="active",
+                provider="share_unlock",
+                provider_ref=f"share:{entry.share_token}",
+                brief_id=brief_id,
+                started_at=now,
+                expires_at=None,
+            )
+            db.add(sub)
+        entry.claimer_rewarded = True
+        entry.claimed_by_user_id = user.id
+        entry.claimed_at = now
+
+    if not entry.sharer_rewarded:
+        if brief_id is not None:
+            sharer_sub = Subscription(
+                user_id=entry.sharer_user_id,
+                plan="brief_oneoff",
+                status="active",
+                provider="share_unlock",
+                provider_ref=f"share_reward:{entry.share_token}",
+                brief_id=brief_id,
+                started_at=now,
+                expires_at=None,
+            )
+            db.add(sharer_sub)
+        entry.sharer_rewarded = True
+
+    db.commit()
+    logger.info(
+        "share_unlock claimed token={} claimer={} sharer={} brief={}",
+        entry.share_token, user.id, entry.sharer_user_id, brief_id,
+    )
+    return ClaimShareOut(
+        ok=True,
+        brief_id=brief_id,
+        message=f"解锁成功！你现在可以查看 Brief #{brief_id} 的完整内容。",
+    )
 
 
 # ---------- E2E helpers (mounted only when E2E_ENABLE=1) ----------

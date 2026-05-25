@@ -197,9 +197,10 @@ def public_status(db: Session = Depends(get_session)) -> StatusPayload:
         select(RawSignal.created_at).order_by(desc(RawSignal.created_at)).limit(1)
     )
     cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=24)
-    if last_signal_at is None or (
-        last_signal_at.tzinfo and last_signal_at < cutoff
-    ):
+    # last_signal_at may be tz-naive from Postgres; coerce before compare.
+    if last_signal_at is not None and last_signal_at.tzinfo is None:
+        last_signal_at = last_signal_at.replace(tzinfo=timezone.utc)
+    if last_signal_at is None or last_signal_at < cutoff:
         any_failing = True
 
     overall = "healthy" if not any_failing else "degraded"

@@ -141,9 +141,15 @@ async def extract_one_cluster(db: Session, cluster: Cluster) -> int:
         inserted += 1
 
     if inserted:
-        # Mark source signals processed so they don't recluster.
-        for s in signals:
-            s.processed = True
+        # Mark ALL signals in this cluster as processed so they don't recluster.
+        # (Only marking the representatives left other members unprocessed.)
+        from sqlalchemy import update
+        db.execute(
+            update(RawSignal)
+            .where(RawSignal.cluster_id == cluster.id)
+            .where(RawSignal.processed == False)  # noqa: E712
+            .values(processed=True)
+        )
         db.commit()
     else:
         db.rollback()

@@ -6,6 +6,7 @@ import { api, serverFetch, type BriefDetail } from "@/lib/api";
 import { Markdown } from "@/components/markdown";
 import { CheckoutButton } from "@/components/checkout-button";
 import { ShareBar } from "@/components/share-bar";
+import { ShareUnlockButton } from "@/components/share-unlock-button";
 import { getLocale, makeT, t as tRaw } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -141,6 +142,7 @@ export default async function BriefDetailPage({ params, searchParams }: PageProp
                   <ShoppingBag className="h-4 w-4" />
                   {t("brief.detail.unlockOne")}
                 </CheckoutButton>
+                <ShareUnlockButton briefId={b.id} className="w-full justify-center" />
                 <CheckoutButton
                   plan="weekly_pro"
                   className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:border-slate-500 disabled:opacity-60"

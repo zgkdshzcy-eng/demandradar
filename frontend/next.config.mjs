@@ -19,6 +19,11 @@ const nextConfig = {
       { source: "/api/newsletter/:path*", destination: `${backend}/api/newsletter/:path*` },
       { source: "/api/insights/:path*", destination: `${backend}/api/insights/:path*` },
       { source: "/api/health", destination: `${backend}/api/health` },
+      { source: "/api/public/:path*", destination: `${backend}/api/public/:path*` },
+      { source: "/api/llm/:path*", destination: `${backend}/api/llm/:path*` },
+      { source: "/api/trend-alerts/:path*", destination: `${backend}/api/trend-alerts/:path*` },
+      { source: "/api/industry/:path*", destination: `${backend}/api/industry/:path*` },
+      { source: "/api/data/:path*", destination: `${backend}/api/data/:path*` },
     ];
   },
 };

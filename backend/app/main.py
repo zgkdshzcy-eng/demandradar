@@ -12,11 +12,14 @@ from app.api import (
     auth,
     billing,
     briefs,
+    data_api,
     health,
+    industry,
     insights,
     newsletter,
     painpoints,
     public_stats,
+    trend_alerts,
     waitlist,
     weekly,
 )
@@ -80,6 +83,9 @@ app.include_router(admin.router)
 app.include_router(newsletter.router)
 app.include_router(insights.router)
 app.include_router(public_stats.router)
+app.include_router(trend_alerts.router)
+app.include_router(industry.router)
+app.include_router(data_api.router)
 
 
 @app.get("/")

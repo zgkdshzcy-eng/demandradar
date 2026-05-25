@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { WaitlistFormI18n } from "@/components/waitlist-form-server";
 import { PublicStatsStrip } from "@/components/public-stats-strip";
+import { ShareClaimBanner } from "@/components/share-claim-banner";
 import {
   Radar,
   Zap,
@@ -84,6 +85,7 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen">
+      <ShareClaimBanner />
       <section className="relative overflow-hidden">
         <div className="mx-auto max-w-5xl px-6 pt-24 pb-16 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/60 px-4 py-1.5 text-xs text-slate-300">
